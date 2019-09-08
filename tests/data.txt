@@ -1,0 +1,7 @@
+words
+abc
+aaa
+efg
+abc
+
+xyz

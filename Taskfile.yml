@@ -1,0 +1,85 @@
+# https://taskfile.dev
+
+version: '2'
+
+env:
+  IMAGE_NAME: {sh: cat .env | grep IMAGE_NAME | cut -d "=" -f2 }
+  NETWORK_NAME: {sh: cat .env | grep NETWORK_NAME | cut -d "=" -f2 }
+
+tasks:
+  install.dependencies:
+    cmds:
+      - pipenv run pip install -r requirements.txt
+
+  run.app:
+    cmds:
+      - pipenv run python structured_streaming/StructuredStreamingApp.py
+
+  run.pyspark:
+    cmds:
+      - pipenv run pyspark
+
+  run.terminal:
+    cmds:
+      - nc -lk 9999
+
+  run.tests:
+    cmds:
+      - pipenv run pytest -vv
+
+  docker.build:
+    cmds:
+      - docker build -t $IMAGE_NAME:latest .
+
+  docker.run:
+    deps: [docker.build]
+    cmds:
+      - docker run --rm -it --network $NETWORK_NAME $IMAGE_NAME:latest /bin/sh
+
+  docker.compose:
+    deps: [docker.build]
+    cmds:
+      - docker container prune --force
+      - docker-compose config
+      - docker-compose up --remove-orphans
+
+  docker.compose-detached:
+    deps: [docker.build]
+    cmds:
+      - docker container prune --force
+      - docker-compose config
+      - docker-compose up -d --remove-orphans
+
+  docker.open.spark-ui:
+    cmds:
+      - xdg-open http://localhost:8080
+
+  docker.run.SparkPi:
+    deps: [docker.build, docker.compose-detached]
+    cmds:
+      - docker run --rm -it --network $NETWORK_NAME $IMAGE_NAME:latest /spark/bin/spark-submit --master spark://spark-master:7077 --class org.apache.spark.examples.SparkPi /spark/examples/jars/spark-examples_2.11-2.4.4.jar 1000
+
+  docker.run.StructuredStreamingApp:
+    deps: [docker.build]
+    cmds:
+      - docker run --rm -it --network $NETWORK_NAME $IMAGE_NAME:latest /spark/bin/spark-submit --master spark://spark-master:7077 --executor-memory 1G --total-executor-cores 1 --packages org.apache.spark:spark-sql-kafka-0-10_2.11:2.4.4 /app/StructuredStreamingApp.py --file file:///README.md
+
+  docker.run.kafka-client:
+    cmds:
+      - docker run --rm -it --network $NETWORK_NAME confluentinc/cp-kafka:latest bash
+
+  docker.run.spark-client:
+    cmds:
+      - docker run --rm -it --network $NETWORK_NAME $IMAGE_NAME:latest pyspark --master spark://spark-master:7077
+
+  docker.run.kafka-console-producer:
+    cmds:
+      - docker run --rm -it --network $NETWORK_NAME confluentinc/cp-kafka:latest kafka-console-producer --broker-list kafka:29092 --topic input-topic
+
+  docker.run.kafka-console-consumer.input-topic:
+    cmds:
+      - docker run --rm -it --network $NETWORK_NAME confluentinc/cp-kafka:latest kafka-console-consumer --bootstrap-server kafka:29092 --topic input-topic
+
+  docker.run.kafka-console-consumer.output-topic:
+    cmds:
+      - docker run --rm -it --network $NETWORK_NAME confluentinc/cp-kafka:latest kafka-console-consumer --bootstrap-server kafka:29092 --topic output-topic

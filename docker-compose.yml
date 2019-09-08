@@ -27,7 +27,7 @@ services:
 
   # SPARK
   spark-master:
-    image: $DOCKER_REGISTRY/data/$PROJECT_NAME:latest
+    image: $IMAGE_NAME:latest
     container_name: spark-master
     hostname: spark-master
     ports:
@@ -41,7 +41,7 @@ services:
       - "SPARK_MASTER_WEBUI_PORT=8080"
     command: "/start-master.sh"
   spark-worker:
-    image: $DOCKER_REGISTRY/data/$PROJECT_NAME:latest
+    image: $IMAGE_NAME:latest
     depends_on:
       - spark-master
     ports:
@@ -56,6 +56,7 @@ services:
 # NETWORK
 networks:
   spark-network:
+    name: $NETWORK_NAME
     driver: bridge
     ipam:
       driver: default
